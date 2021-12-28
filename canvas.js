@@ -1,5 +1,5 @@
 
-// 1228 1시간 10분
+// 1228 1시간 29분
 const canvas = document.querySelector('canvas')
 const c  = canvas.getContext('2d') // 2d 게임, canvas 객체의 api 속성에 넣어주는 것
 
@@ -72,6 +72,37 @@ class Enemy {
     }
 }
 
+const friction = 0.99
+class Particle {
+    constructor(x, y, radius, color, velocity){
+        this.x = x
+        this.y = y
+        this.radius = radius
+        this.color = color
+        this.velocity = velocity
+        this.alpha = 1 // 서서히 사라지는 효과를 위한 변수
+    }
+
+    draw() { 
+        c.save()
+        c.globalAlpha = this.alpha
+        c.beginPath()
+        c.arc(this.x , this.y, this.radius, 0, Math.PI*2, false)
+        c.fillStyle = this.color
+        c.fill()
+        c.restore()
+    }
+
+    update(){
+        this.draw()
+        this.velocity.x *= friction
+        this.velocity.y *= friction
+        this.x = this.x + this.velocity.x // x 좌표 == 현재 좌표 + 속도
+        this.y = this.y + this.velocity.y
+        this.alpha -= 0.01
+    }
+}
+
 const x = canvas.width / 2
 const y = canvas.height / 2
 // 화면의 중앙에 플레이어가 위치하도록
@@ -79,10 +110,11 @@ const y = canvas.height / 2
 const player = new Player(x, y, 10, 'white') // 플레이어 객체 생성 
 const projectiles = []
 const enemies = []
+const particles = []
 
 function spawnEnemies(){
     setInterval(() => {
-        const radius = Math.random() * (30 - 4) + 4 // 4~ 30 사이 값
+        const radius = Math.random() * (30 - 4) + 4 // 4 ~ 30 사이 값
          
         let x
         let y
@@ -93,9 +125,9 @@ function spawnEnemies(){
             //const y = Math.random() < 0.5 ? 0 - radius : canvas.height + radius
         } else{
             x = Math.random() * canvas.width
-            y = Math.random() < 0.5 ? 0 - radius : canvas.width + radius
+            y = Math.random() < 0.5 ? 0 - radius : canvas.height + radius
         }
-        const color = 'hsl(Math.random() * 360, 50%, 50%)'
+        const color = `hsl(${Math.random() * 360}, 50%, 50%)`
 
         const angle = Math.atan2(
             canvas.height / 2 - y,
@@ -117,6 +149,7 @@ function animate(){
     c.fillStyle = 'rgba(0, 0, 0, 0.1)'
     c.fillRect(0, 0, canvas.width, canvas.height)
     player.draw()
+    projectiles
     projectiles.forEach((projectile, index) => {
         projectile.update()
 
@@ -141,12 +174,27 @@ function animate(){
             
             // 사물이 닿았을 때
             if(dist  - enemy.radius - projectile.radius < 1){ // 두 거리가 1보다 작을 때 
-                setTimeout(() => {
-                    enemies.splice(index, 1) 
-                    projectiles.splice(projectileIndex, 1)
-                }, 0)    
+
+                // 터지는 거 생성
+                for(let i = 0;i<enemy.radius * 2;i++){
+                    projectiles.push(
+                        new Particle(projectile.x, projectile.y, Math.random() * 2, enemy.color, {x: (Math.random() - 0.5) * (Math.random() * 6), y: (Math.random() - 0.5) * (Math.random() * 6)}))
+                }
+                if(enemy.radius - 10 > 5) {
+                    gsap.to(enemy, {
+                        radius : radius.enemy - 10
+                    })
+                    setTimeout(() => {
+                        projectiles.splice(projectileIndex, 1)
+                    }, 0)  
+                } else{
+                    setTimeout(() => {
+                        enemies.splice(index, 1) 
+                        projectiles.splice(projectileIndex, 1)
+                    }, 0)  
+                }  
             }
-        });
+        })
     })
 }
 
